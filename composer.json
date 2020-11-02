@@ -1,0 +1,14 @@
+{
+    "name": "lucid/slim-test",
+    "authors": [
+        {
+            "name": "K3kan",
+            "email": "aintbor@gmail.com"
+        }
+    ],
+    "require": {
+        "slim/slim": "^4.5",
+        "slim/psr7": "^1.2",
+        "slim/http": "^1.1"
+    }
+}
