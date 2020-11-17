@@ -3,16 +3,16 @@
 <table>
     <tr>
         <td>
-            <?= $user['id'] ?>
+            <?= htmlspecialchars($user['id']) ?>
         </td>
         <td>
-            <?= $user['firstName'] ?>
+            <?= htmlspecialchars($user['firstName']) ?>
         </td>
         <td>
-            <?= $user['lastName'] ?>
+            <?= htmlspecialchars($user['lastName']) ?>
         </td>
         <td>
-            <?= $user['email'] ?>
+            <?= htmlspecialchars($user['email']) ?>
         </td>
     </tr>
 </table>

@@ -7,6 +7,22 @@ use Slim\Factory\AppFactory;
 use DI\Container;
 
 $users = ['mike', 'mishel', 'adel', 'keks', 'kamila'];
+$userId = 0;
+
+function validate($user)
+ {
+    $errors = [];
+    if (empty($user['name'])) {
+        $errors['name'] = "Can't be blank name";
+    }
+    if (empty($user['email'])) {
+         $errors['name'] = "Can't be blank email";
+    }
+    if (empty($user['id'])) {
+         $errors['id'] = "Can't be blank email";
+    }
+    return $errors;
+}
 
 $container = new Container();
 $container->set('renderer', function () {
@@ -22,7 +38,7 @@ $app->get('/', function ($request, $response) {
     return $response;
     // Благодаря пакету slim/http этот же код можно записать короче
     // return $response->write('Welcome to Slim!');
-});
+})->setName('users');
 
 $app->get('/courses/{id}', function ($request, $response, array $args) {
     $id = $args['id'];
@@ -52,6 +68,31 @@ $app->get('/users/{id}', function ($request, $response, $args) {
     // $this доступен внутри анонимной функции благодаря https://php.net/manual/ru/closure.bindto.php
     // $this в Slim это контейнер зависимостей
     return $this->get('renderer')->render($response, 'users/show.phtml', $params);
+});
+
+$app->post('/form', function ($request, $response) {
+    $file = 'users.txt';
+    $user = $request->getParsedBodyParam('user');
+    $errors = validate($user);
+    if (count($errors) === 0) {
+        $encode = json_encode($user);
+        file_put_contents($file, "$encode\n", FILE_APPEND);
+        return $response->withRedirect('/users', 302);
+    }
+    $params = [
+        'user' => $user,
+        'errors' => $errors
+    ];
+    return $this->get('renderer')->render($response, "users/new.phtml", $params);
+});
+
+$app->get('/form/new', function ($request, $response) {
+    $userId = rand();
+    $params = [
+        'user' => ['name' => '', 'email' => '', 'id' => $userId],
+        'errors' => []
+    ];
+    return $this->get('renderer')->render($response, "users/new.phtml", $params);
 });
 
 $app->run();
