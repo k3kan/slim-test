@@ -38,7 +38,7 @@ $app->get('/', function ($request, $response) {
     return $response;
     // Благодаря пакету slim/http этот же код можно записать короче
     // return $response->write('Welcome to Slim!');
-})->setName('users');
+});
 
 $app->get('/courses/{id}', function ($request, $response, array $args) {
     $id = $args['id'];
@@ -60,7 +60,9 @@ $app->get('/users', function ($request, $response) use($users) {
     }
     $params = ['courses' => $courses, 'term' => $term];
     return $this->get('renderer')->render($response, 'users/index.phtml', $params);
-});
+})->setName('users');
+
+$router = $app->getRouteCollector()->getRouteParser();
 
 $app->get('/users/{id}', function ($request, $response, $args) {
     $params = ['id' => $args['id'], 'nickname' => 'user-' . $args['id']];
@@ -70,20 +72,29 @@ $app->get('/users/{id}', function ($request, $response, $args) {
     return $this->get('renderer')->render($response, 'users/show.phtml', $params);
 });
 
-$app->post('/form', function ($request, $response) {
+$app->post('/form', function ($request, $response) use($router) {
     $file = 'users.txt';
     $user = $request->getParsedBodyParam('user');
     $errors = validate($user);
     if (count($errors) === 0) {
         $encode = json_encode($user);
         file_put_contents($file, "$encode\n", FILE_APPEND);
-        return $response->withRedirect('/users', 302);
+        return $response->withRedirect($router->urlFor('users'), 302);
     }
     $params = [
         'user' => $user,
         'errors' => $errors
     ];
     return $this->get('renderer')->render($response, "users/new.phtml", $params);
+});
+
+$app->get('/form', function ($request, $response) {
+    $users = file_get_contents('./users.txt');
+    $arrayUsers = explode("\n", $users);
+    $params = [
+        'users' => $arrayUsers,
+    ];
+    return $this->get('renderer')->render($response, "users/form.phtml", $params);
 });
 
 $app->get('/form/new', function ($request, $response) {
