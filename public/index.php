@@ -6,6 +6,9 @@ require __DIR__ . '/../vendor/autoload.php';
 use Slim\Factory\AppFactory;
 use DI\Container;
 
+// Старт PHP сессии
+session_start();
+
 $users = ['mike', 'mishel', 'adel', 'keks', 'kamila'];
 $userId = 0;
 
@@ -29,6 +32,10 @@ $container->set('renderer', function () {
     // Параметром передается базовая директория, в которой будут храниться шаблоны
     return new \Slim\Views\PhpRenderer(__DIR__ . '/../templates');
 });
+$container->set('flash', function () {
+    return new \Slim\Flash\Messages();
+});
+
 $app = AppFactory::createFromContainer($container);
 $app->addErrorMiddleware(true, true, true);
 
@@ -58,18 +65,34 @@ $app->get('/users', function ($request, $response) use($users) {
             }
         });
     }
+    $messages = $this->get('flash')->getMessages();
+    print_r($messages['success'][0]);
     $params = ['courses' => $courses, 'term' => $term];
     return $this->get('renderer')->render($response, 'users/index.phtml', $params);
 })->setName('users');
 
 $router = $app->getRouteCollector()->getRouteParser();
 
-$app->get('/users/{id}', function ($request, $response, $args) {
-    $params = ['id' => $args['id'], 'nickname' => 'user-' . $args['id']];
-    // Указанный путь считается относительно базовой директории для шаблонов, заданной на этапе конфигурации
-    // $this доступен внутри анонимной функции благодаря https://php.net/manual/ru/closure.bindto.php
-    // $this в Slim это контейнер зависимостей
-    return $this->get('renderer')->render($response, 'users/show.phtml', $params);
+$app->get('/users/{user}', function ($request, $response, $args) {
+    $username = ['user' => $args['user']];
+    $users = file_get_contents('./users.txt');
+    $arrayUsers = explode("\n", $users);
+    $count = 0;
+    $nameUser = [];
+    foreach ($arrayUsers as $user) {
+        $user = json_decode($user);
+        //print_r($user->name);
+        if ($user->name === $username['user']) {
+            $count = 1;
+            $nameUser[] = $user->name;
+        }
+    }
+    //print_r($nameUser);
+    if ($count === 0) {
+        return $response->write("Пользователь не найден")->withStatus(404);
+    }
+    $params = ['user' => $nameUser];
+    return $this->get('renderer')->render($response, 'users/showUser.phtml', $params);
 });
 
 $app->post('/form', function ($request, $response) use($router) {
@@ -79,6 +102,7 @@ $app->post('/form', function ($request, $response) use($router) {
     if (count($errors) === 0) {
         $encode = json_encode($user);
         file_put_contents($file, "$encode\n", FILE_APPEND);
+        $this->get('flash')->addMessage('success', 'Пользователь добавлен');
         return $response->withRedirect($router->urlFor('users'), 302);
     }
     $params = [
