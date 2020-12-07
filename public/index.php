@@ -25,6 +25,15 @@ function validate($user)
     return $errors;
 }
 
+function validateEdit($user)
+{
+    $errors = [];
+    if (empty($user['name'])) {
+        $errors['name'] = "Can't be blank name";
+    }
+    return $errors;
+}
+
 $container = new Container();
 $container->set('renderer', function () {
     // Параметром передается базовая директория, в которой будут храниться шаблоны
@@ -63,9 +72,10 @@ $app->get('/users', function ($request, $response) {
             }
         });
     }
-    $messages = $this->get('flash')->getMessages();
-    print_r($messages['success'][0]);
-    $params = ['courses' => $courses, 'term' => $term];
+    $flash= $this->get('flash')->getMessages();
+    $params = ['courses' => $courses,
+        'term' => $term,
+        'flash' => $flash];
     return $this->get('renderer')->render($response, 'users/index.phtml', $params);
 })->setName('users');
 
@@ -142,39 +152,69 @@ $app->get('/users/{id}/edit', function ($request, $response, array $args) {
         return $response->write("Пользователь не найден")->withStatus(404);
     }
     $params = [
-        'user' => $needfulUser,
-        'errors' => []
+        'user' => $needfulUser[0],
+        'errors' => [],
+        'postUser' => $needfulUser
     ];
     return $this->get('renderer')->render($response, 'users/edit.phtml', $params);
 })->setName('editUser');
 
 $app->patch('/users/{id}', function ($request, $response, array $args)  use ($router) {
-    $id = $args['id'];
+    $id = ['id' => $args['id']];
     $postUser = $request->getParsedBodyParam('user');
     $users = json_decode($request->getCookieParam('users', json_encode([])), true);
-    $needfulUser = $id;
-    $count = 0;
-    $errors = [];
-    foreach ($users as $user) {
-        if ($user['id'] === $id) {
-            $user['name'] = $postUser['name'];
-            $needfulUser = $user;
-            $count = 1;
-        }
-    }
-    if ($count === 1) {
+    $errors = validateEdit($postUser);
+    if (count($errors) === 0) {
+        $map = array_map( function ($user) use ($id, $postUser) {
+            if ($user['id'] === $id['id']) {
+                $user['name'] = $postUser['name'];
+            }
+            return $user;
+        }, $users);
         $this->get('flash')->addMessage('success', 'User has been updated');
-        $encodedUsers = json_encode($users);
+        $encodedUsers = json_encode($map);
         $url = $router->urlFor('users');
-        return $response->withHeader('Set-Cookie', "users={$encodedUsers}")->withRedirect($router->urlFor('users'));
+        return $response->withHeader('Set-Cookie', "users={$encodedUsers};Path=/")->withRedirect($url);
     }
     $params = [
-        'user' => $needfulUser,
+        'user' => $id,
         'postUser' => $postUser,
         'errors' => $errors
     ];
     $response = $response->withStatus(422);
     return $this->get('renderer')->render($response, 'users/edit.phtml', $params);
+});
+
+$app->get('/session', function ($request, $response){
+    $message = $this->get('flash')->getMessages();
+    $params = [
+        'user' => ['email' => ''],
+        'session' => $_SESSION,
+        'flash' => $message
+    ];
+    return $this->get('renderer')->render($response, 'users/authentication.phtml', $params);
+})->setName('session');
+
+$app->post('/session', function ($request, $response) use ($router) {
+    $postData = $request->getParsedBodyParam('user');
+    $users = json_decode($request->getCookieParam('users', json_encode([])), true);
+    foreach ($users as $user) {
+        if ($user['email'] === $postData['email']) {
+            $_SESSION['email'] = $user['email'];
+        }
+    }
+    if (!isset($_SESSION['email'])) {
+        $this->get('flash')->addMessage('false', 'Wrong password or name');
+    }
+    $url = $router->urlFor('session');
+    return $response->withRedirect($url);
+});
+
+$app->delete('/session', function ($request, $response) use ($router) {
+    $_SESSION = [];
+    session_destroy();
+    $url = $router->urlFor('session');
+    return $response->withRedirect($url);
 });
 
 $app->run();

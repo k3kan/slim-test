@@ -2,8 +2,8 @@
     <input type="hidden" name="_METHOD" value="PATCH">
     <div>
         <label>
-            Название *
-            <input type="text" name="user[name]" value="<?= htmlspecialchars($postUser['name']) ?>">
+            Поменять имя пользователя
+            <input type="text" name="user[name]" value="<?= htmlspecialchars($postUser['name'])  ?? '' ?>">
         </label>
         <?php if (isset($errors['name'])): ?>
             <div><?= $errors['name'] ?></div>
